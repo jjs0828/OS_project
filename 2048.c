@@ -5,22 +5,29 @@
 // Gameplay based on 2048 by Gabriele Cirulli <http://gabrielecirulli.com>
 //
 
+/*
+ * 시그널 제어에 따른 헤더파일 추가
+ */
 #include <time.h>
+#include <unistd.h>
 #include <stdlib.h>
 #include <stdio.h>
 #include <stdbool.h>
 #include <signal.h>
+#include <sys/types.h>
 
+/* 수정함
+ * 게임 내의 디폴트 값
+ */
 #define GOAL 2048
 #define SIZE 4
 #define QUIT -1
 #define LOSE 0
 #define WIN 1
-/*
- * boardLt is the canonical board; every other board reflects boardLt in its
- * respective direction.
- */
 
+/* 추가함
+ * 이 구조체는 게임 데이터와 함수를 관리한다
+ */
 typedef struct mygame{
 
     int *(boardLt[SIZE][SIZE]); // left (canonical)
@@ -40,10 +47,10 @@ typedef struct mygame{
     bool (*isFull)(struct mygame *g);
 }mygame;
 
-/*
-* initialize struct
-*/
 
+/* 추가함
+* 위 함수는 mygame구조체를 초기화한다
+*/
 mygame* initialize(){
     mygame* g = malloc(sizeof(mygame));
     g->lastAdd = 0;
@@ -69,10 +76,10 @@ mygame* initialize(){
     return g;
 }
 
-/*
- * Free boards using boardLt.
- */
 
+/*
+ * 위 함수는 메모리를 해제한다
+ */
 void
 cleanup(struct mygame *g) {
     for (int r = 0; r < SIZE; r++) {
@@ -83,9 +90,8 @@ cleanup(struct mygame *g) {
 }
 
 /*
- * Print outcome and exit gracefully.
+ * 위 함수는 종료 루틴을 수행한다
  */
-
 int
 quit(int op,struct mygame *g) {
     const char *msg = op == 1 ? "YOU WIN!": op == 0 ? "GAME OVER." : "QUIT";
@@ -95,21 +101,23 @@ quit(int op,struct mygame *g) {
     exit(0);
 }
 
-/*
- * Signal handler function for SIGINT.
+/* 
+ * 위 함수는 종료를 실행한다
+ * 수정 내역
+ * 게임 데이터를 받는 부분이 전역변수에서 구조체로 수정되면서 기존 quit함수를 호출할 수 없게 됨
+ * ctrl+z를 통한 종료는 메모리 누수를 발생시킴 이를 해결하기 위해 kill을 수행
  */
-
 void
 terminate(int signum) {
     printf("Terminate %d\n",signum);
-    exit(0);    
+    pid_t self = getpid();
+    kill(self,SIGKILL);   
     //quit(QUIT);   //quit need parameter
 }
 
 /*
- * Print the specified board.
+ * 위 함수는 게임 화면을 출력한다
  */
-
 void
 printBoard(struct mygame *g) {
     printf("\n2048\n\nSCORE: %d\n\n", g->score);
@@ -131,10 +139,10 @@ printBoard(struct mygame *g) {
 }
 
 /*
- * Add tile to random open space on board.
- * Tile is a 2 or a 4, randomly chosen.
+ * 위 함수는 새로운 난수를 생성한다
+ * 수정함
+ * int형 변수 two_or_four가 숫자 2만 생성하는 버그 수정함
  */
-
 void
 addRandom(struct mygame *g) {
     int r, c;
@@ -142,15 +150,14 @@ addRandom(struct mygame *g) {
         r = rand()%4;
         c = rand()%4;
     } while (*g->boardLt[r][c] != 0);
-    int two_or_four = 2 * rand()%2 + 2;
+    int two_or_four = 2 * (rand()%2) + 2;
     *g->boardLt[r][c] = two_or_four;
     g->lastAdd = g->boardLt[r][c];
 }
 
 /*
- * Slide all tiles left on the specified board.
+ * 위 함수는 입력에 따른 타일 이동을 수행한다
  */
-
 bool
 slide(int *b[SIZE][SIZE],struct mygame *g) {
     bool success = 0; // true if something moves
@@ -188,9 +195,10 @@ slide(int *b[SIZE][SIZE],struct mygame *g) {
 }
 
 /*
- * Get and act on next move from user.
+ * 위 함수는 입력에 따른 타일이동 함수를 호출한다
+ * 수정됨
+ * caps lock이 켜져있을 시 작업이 수행되지 않은 부분 수정
  */
-
 int
 move(struct mygame *g) {
     bool success = false;
@@ -226,12 +234,8 @@ move(struct mygame *g) {
 }
 
 /*
- * Check for possible moves.
- *
- * Return: true if no moves are possible
- *         false if a move exists
+ * 위 함수는 움직일 수 있는지 확인한다
  */
-
 bool
 isFull(struct mygame *g) {
     for (int r = SIZE-1; r >= 0; r--) {
@@ -254,9 +258,11 @@ isFull(struct mygame *g) {
 }
 
 /*
- * Main.
+ * 위 함수는 메인이다
+ * 수정함
+ * 전역변수에서 구조체로 바뀜에 따라 구조체 이니셜라이져 호출 및 함수포인터를 함수와 연결하도록 수정
+ * 이에 따른 모든 함수의 매개변수 수정
  */
-
 int
 main(){
     mygame* g=initialize();
