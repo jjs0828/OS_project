@@ -101,6 +101,7 @@ quit(int op,struct mygame *g) {
 
 void
 terminate(int signum) {
+    printf("Terminate %d\n",signum);
     exit(0);    
     //quit(QUIT);   //quit need parameter
 }
@@ -251,7 +252,7 @@ isFull(struct mygame *g) {
  */
 
 int
-main(int argc, char **argv){
+main(){
     mygame* g=initialize();
 
     g->cleanup = cleanup;
