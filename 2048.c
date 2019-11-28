@@ -5,6 +5,8 @@
 // Gameplay based on 2048 by Gabriele Cirulli <http://gabrielecirulli.com>
 //
 
+//수정사항 확인에 대한 수정 주석입니다.
+
 /*
  * 시그널 제어에 따른 헤더파일 추가
  */
