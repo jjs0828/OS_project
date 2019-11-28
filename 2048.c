@@ -198,22 +198,28 @@ move(struct mygame *g) {
     char direction = getchar();
     switch(direction) {
         case 119:      // 'w' key; up
+        case 87:
             success = slide(g->boardUp,g);
             break;
         case 97:       // 'a' key; left
+        case 65:
             success = slide(g->boardLt,g);
             break;
         case 115:       // 's' key; down
+        case 83:
             success = slide(g->boardDn,g);
             break;
         case 100:       // 'd' key; right
+        case 68:
             success = slide(g->boardRt,g);
             break;
         case 113:       // 'q' key; quit
+        case 81:
             quit(QUIT,g);
             break;
             //     default:
             //         success = false;
+
     }
 
     return success;
