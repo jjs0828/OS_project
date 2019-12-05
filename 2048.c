@@ -1,61 +1,17 @@
-//
-// 2048.c
-//
-// Copyright (c) 2014 Ben Kogan <http://benkogan.com>
-// Gameplay based on 2048 by Gabriele Cirulli <http://gabrielecirulli.com>
-//
-
-/*
- * 시그널 제어에 따른 헤더파일 추가
- */
-#include <time.h>
-#include <unistd.h>
-#include <stdlib.h>
-#include <stdio.h>
-#include <stdbool.h>
-#include <signal.h>
-#include <sys/types.h>
-
-/* 수정함
- * 게임 내의 디폴트 값
- */
-#define GOAL 2048
-#define SIZE 4
-#define QUIT -1
-#define LOSE 0
-#define WIN 1
-
-/* 추가함
- * 이 구조체는 게임 데이터와 함수를 관리한다
- */
-typedef struct mygame{
-
-    int *(boardLt[SIZE][SIZE]); // left (canonical)
-    int *(boardRt[SIZE][SIZE]); // right
-    int *(boardUp[SIZE][SIZE]); // up
-    int *(boardDn[SIZE][SIZE]); // down
-    int *lastAdd; // address of last tile added
-    int score;
-    int win;
-
-    void (*cleanup)(struct mygame *g);
-    int (*quit)(int op,struct mygame *g);
-    void (*printBoard)(struct mygame *g);
-    void (*addRandom)(struct mygame *g);
-    int (*move)(struct mygame *g);
-    bool (*slide)(int *b[SIZE][SIZE],struct mygame *g);
-    bool (*isFull)(struct mygame *g);
-}mygame;
-
+#include "2048.h"
 
 /* 추가함
 * 위 함수는 mygame구조체를 초기화한다
 */
 mygame* initialize(){
     mygame* g = malloc(sizeof(mygame));
+    g->score = (int*) malloc(sizeof(int));
+    g->win = (int*) malloc(sizeof(int));
+
     g->lastAdd = 0;
-    g->score = 0;
-    g->win = 0;
+    *g->score = 0;
+    *g->win = 0;
+
         for (int r = 0; r < SIZE; r++) { // row for canonical board
             for (int c = 0; c < SIZE; c++) { // column for canonical board
                 int *tile = (int *) malloc(sizeof(int));
@@ -73,6 +29,14 @@ mygame* initialize(){
             }
         }
 
+    g->cleanup = cleanup;
+    g->quit = quit;
+    g->printBoard = printBoard;
+    g->addRandom = addRandom;
+    g->move = move;
+    g->slide = slide;
+    g->isFull = isFull;
+    g->play = play;
     return g;
 }
 
@@ -87,6 +51,7 @@ cleanup(struct mygame *g) {
             free(g->boardLt[r][c]);
         }
     }
+    free(g);
 }
 
 /*
@@ -101,33 +66,19 @@ quit(int op,struct mygame *g) {
     exit(0);
 }
 
-/* 
- * 위 함수는 종료를 실행한다
- * 수정 내역
- * 게임 데이터를 받는 부분이 전역변수에서 구조체로 수정되면서 기존 quit함수를 호출할 수 없게 됨
- * ctrl+z를 통한 종료는 메모리 누수를 발생시킴 이를 해결하기 위해 kill을 수행
- */
-void
-terminate(int signum) {
-    printf("Terminate %d\n",signum);
-    pid_t self = getpid();
-    kill(self,SIGKILL);   
-    //quit(QUIT);   //quit need parameter
-}
-
 /*
  * 위 함수는 게임 화면을 출력한다
  */
 void
-printBoard(struct mygame *g) {
-    printf("\n2048\n\nSCORE: %d\n\n", g->score);
+printBoard(int *boardLt[SIZE][SIZE], int *lastAdd, int *score) {
+    printf("\n2048\n\nSCORE: %d\n\n", *score);
     for (int r = 0; r < SIZE; r++) {
         for (int c = 0; c < SIZE; c++) {
-            if (*g->boardLt[r][c]) {
-                if (g->lastAdd == g->boardLt[r][c])
-                    printf("\033[036m%6d\033[0m", *g->boardLt[r][c]); // with color
+            if (*boardLt[r][c]) {
+                if (lastAdd == boardLt[r][c])
+                    printf("\033[036m%6d\033[0m", *boardLt[r][c]); // with color
                 else
-                    printf("%6d", *g->boardLt[r][c]);
+                    printf("%6d", *boardLt[r][c]);
             } else {
                 printf("%6s", ".");
             }
@@ -144,22 +95,23 @@ printBoard(struct mygame *g) {
  * int형 변수 two_or_four가 숫자 2만 생성하는 버그 수정함
  */
 void
-addRandom(struct mygame *g) {
+addRandom(int *boardLt[SIZE][SIZE], int *lastAdd) {
     int r, c;
+    srand(time(NULL));
     do {
         r = rand()%4;
         c = rand()%4;
-    } while (*g->boardLt[r][c] != 0);
+    } while (*boardLt[r][c] != 0);
     int two_or_four = 2 * (rand()%2) + 2;
-    *g->boardLt[r][c] = two_or_four;
-    g->lastAdd = g->boardLt[r][c];
+    *boardLt[r][c] = two_or_four;
+    lastAdd = boardLt[r][c];
 }
 
 /*
  * 위 함수는 입력에 따른 타일 이동을 수행한다
  */
 bool
-slide(int *b[SIZE][SIZE],struct mygame *g) {
+slide(int *b[SIZE][SIZE],int *score, int *win) {
     bool success = 0; // true if something moves
     int marker = -1;  // marks a cell one past location of a previous merge
 
@@ -177,9 +129,9 @@ slide(int *b[SIZE][SIZE],struct mygame *g) {
             // merge tile with target tile
             if (newc != c) {
                 if (*b[r][newc]) {
-                    g->score += *b[r][newc] += *b[r][c];
+                    *score += *b[r][newc] += *b[r][c];
                     marker = newc+1;
-                    if (*b[r][newc] == GOAL) g->win = true;
+                    if (*b[r][newc] == GOAL) *win = true;
                 } else {
                     *b[r][newc] += *b[r][c];
                 }
@@ -207,19 +159,19 @@ move(struct mygame *g) {
     switch(direction) {
         case 119:      // 'w' key; up
         case 87:
-            success = slide(g->boardUp,g);
+            success = slide(g->boardUp, g->score, g->win);
             break;
         case 97:       // 'a' key; left
         case 65:
-            success = slide(g->boardLt,g);
+            success = slide(g->boardLt, g->score, g->win);
             break;
         case 115:       // 's' key; down
         case 83:
-            success = slide(g->boardDn,g);
+            success = slide(g->boardDn, g->score, g->win);
             break;
         case 100:       // 'd' key; right
         case 68:
-            success = slide(g->boardRt,g);
+            success = slide(g->boardRt, g->score, g->win);
             break;
         case 113:       // 'q' key; quit
         case 81:
@@ -237,20 +189,20 @@ move(struct mygame *g) {
  * 위 함수는 움직일 수 있는지 확인한다
  */
 bool
-isFull(struct mygame *g) {
+isFull(int *boardLt[SIZE][SIZE]) {
     for (int r = SIZE-1; r >= 0; r--) {
         for (int c = SIZE-1; c >= 0; c--) {
 
             // check tile above where there is a row above
             if (r &&
-                (*g->boardLt[r-1][c] == 0 ||
-                 *g->boardLt[r-1][c] == *g->boardLt[r][c]))
+                (*boardLt[r-1][c] == 0 ||
+                 *boardLt[r-1][c] == *boardLt[r][c]))
                 return false;
 
             // check tile to left where there is a column to the left
             if (c &&
-                (*g->boardLt[r][c-1] == 0 ||
-                 *g->boardLt[r][c-1] == *g->boardLt[r][c]))
+                (*boardLt[r][c-1] == 0 ||
+                 *boardLt[r][c-1] == *boardLt[r][c]))
                 return false;
         }
     }
@@ -258,39 +210,23 @@ isFull(struct mygame *g) {
 }
 
 /*
- * 위 함수는 메인이다
- * 수정함
- * 전역변수에서 구조체로 바뀜에 따라 구조체 이니셜라이져 호출 및 함수포인터를 함수와 연결하도록 수정
- * 이에 따른 모든 함수의 매개변수 수정
+ * 위 함수는 게임 실행을 담당한다
  */
-int
-main(){
-    mygame* g=initialize();
-
-    g->cleanup = cleanup;
-    g->quit = quit;
-    g->printBoard = printBoard;
-    g->addRandom = addRandom;
-    g->move = move;
-    g->slide = slide;
-    g->isFull = isFull;
-
-    srand(time(NULL));         // seed random number
-    signal(SIGINT, terminate); // set up signal to handle ctrl-c
-    system("stty cbreak");     // read user input immediately
-    g->addRandom(g);
+void
+play(struct mygame *g){
+    g->addRandom(g->boardLt, g->lastAdd);
 
     for (;;) {
         printf("\e[1;1H\e[2J"); // clear screen
-        g->addRandom(g);
-        g->printBoard(g);
-        if (g->isFull(g)) break;
-        if (g->win) quit(WIN,g);
-        while(!g->move(g))
-            ;
+        g->addRandom(g->boardLt, g->lastAdd);
+         g->printBoard(g->boardLt, g->lastAdd, g->score);
+
+        if (g->isFull(g->boardLt)) break;
+       if (*g->win) quit(WIN,g);
+       while(!g->move(g));
     }
 
     quit(LOSE,g); // game over
     g->cleanup(g);  // not reached
-    return 0;
+
 }
