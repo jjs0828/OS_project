@@ -1,23 +1,27 @@
 
-SRC = 2048.c
+CC = gcc
 CFLAGS = -std=c99 -Wall -Wextra
 
-BIN ?= c2048
+TARGET = c2048
+OBJECTS = 2048.o main.o
+
 PREFIX ?= /usr/local
 
-$(BIN):
-	gcc $(CFLAGS) -o $(BIN) $(SRC)
+all : $(TARGET)
+
+$(TARGET): $(OBJECTS)	
+	$(CC) $(CFLAGS) -o $@ $^
 
 debug:
-	gcc $(CFLAGS) -g -o $(BIN) $(SRC)
+	$(CC) $(CFLAGS) -g -o $(TARGET) $@ $^
 
 clean:
-	rm -rf *.out *.o *.dSYM $(BIN)
+	rm -rf *.out *.o *.dSYM $(TARGET)
 
-install: $(BIN)
-	cp -f $(BIN) $(PREFIX)/bin/
+install: $(TARGET)
+	cp -f $(TARGET) $(PREFIX)/bin/
 
 uninstall:
-	rm -f $(PREFIX)/bin/$(BIN)
+	rm -f $(PREFIX)/bin/$(TARGET)
 
 .PHONY: debug clean install uninstall
