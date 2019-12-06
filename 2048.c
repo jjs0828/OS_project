@@ -3,7 +3,8 @@
 /* 추가함
 * 위 함수는 mygame구조체를 초기화한다
 */
-mygame* initialize(){
+mygame*
+initialize(){
     mygame* g = malloc(sizeof(mygame));
     g->score = (int*) malloc(sizeof(int));
     g->win = (int*) malloc(sizeof(int));
@@ -42,6 +43,22 @@ mygame* initialize(){
 
 
 /*
+ * 위 함수는 오브젝트를 반환한다
+ */ 
+mygame*
+getObject(){
+    static mygame *object = NULL;
+    
+    //pthread_mutex_lock(&mutex);
+    if(object==NULL)
+        object = initialize();
+    //pthread_mutex_unlock(&mutex);
+
+    return object;
+}
+
+
+/*
  * 위 함수는 메모리를 해제한다
  */
 void
@@ -51,6 +68,8 @@ cleanup(struct mygame *g) {
             free(g->boardLt[r][c]);
         }
     }
+    free(g->score);
+    free(g->win);
     free(g);
 }
 
@@ -62,7 +81,9 @@ quit(int op,struct mygame *g) {
     const char *msg = op == 1 ? "YOU WIN!": op == 0 ? "GAME OVER." : "QUIT";
 
     printf("\n\n%s\n", msg);
+    //pthread_mutex_lock(&mutex);
     cleanup(g);
+    //pthread_mutex_unlock(&mutex);
     exit(0);
 }
 
@@ -71,6 +92,7 @@ quit(int op,struct mygame *g) {
  */
 void
 printBoard(int *boardLt[SIZE][SIZE], int *lastAdd, int *score) {
+    //pthread_mutex_lock(&mutex);
     printf("\n2048\n\nSCORE: %d\n\n", *score);
     for (int r = 0; r < SIZE; r++) {
         for (int c = 0; c < SIZE; c++) {
@@ -87,6 +109,7 @@ printBoard(int *boardLt[SIZE][SIZE], int *lastAdd, int *score) {
     }
 
     printf("\nMOVEMENT:\n   w\n a s d              ");
+    //pthread_mutex_unlock(&mutex);
 }
 
 /*
@@ -103,8 +126,11 @@ addRandom(int *boardLt[SIZE][SIZE], int *lastAdd) {
         c = rand()%4;
     } while (*boardLt[r][c] != 0);
     int two_or_four = 2 * (rand()%2) + 2;
+
+    //pthread_mutex_lock(&mutex);
     *boardLt[r][c] = two_or_four;
     lastAdd = boardLt[r][c];
+    //pthread_mutex_unlock(&mutex);
 }
 
 /*
@@ -115,6 +141,7 @@ slide(int *b[SIZE][SIZE],int *score, int *win) {
     bool success = 0; // true if something moves
     int marker = -1;  // marks a cell one past location of a previous merge
 
+    //pthread_mutex_lock(&mutex);
     for (int r = 0; r < SIZE; r++) { // rows
         for (int c = 1; c < SIZE; c++) { // don't need to slide first col
             if (!(*b[r][c])) continue; // no tile
@@ -143,6 +170,7 @@ slide(int *b[SIZE][SIZE],int *score, int *win) {
         marker = -1; // reset for next row
     }
 
+    //pthread_mutex_unlock(&mutex);
     return success;
 }
 
@@ -192,18 +220,23 @@ bool
 isFull(int *boardLt[SIZE][SIZE]) {
     for (int r = SIZE-1; r >= 0; r--) {
         for (int c = SIZE-1; c >= 0; c--) {
-
+            bool ret = true;
+            //pthread_mutex_lock(&mutex);
             // check tile above where there is a row above
             if (r &&
                 (*boardLt[r-1][c] == 0 ||
                  *boardLt[r-1][c] == *boardLt[r][c]))
-                return false;
+                ret = false;
 
             // check tile to left where there is a column to the left
-            if (c &&
+            else if (c &&
                 (*boardLt[r][c-1] == 0 ||
                  *boardLt[r][c-1] == *boardLt[r][c]))
-                return false;
+                ret = false;
+
+            //pthread_mutex_unlock(&mutex);
+            if(!ret)
+                return ret;
         }
     }
     return true; // no possible moves found

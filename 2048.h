@@ -3,6 +3,7 @@
 #include <stdlib.h>
 #include <stdio.h>
 #include <stdbool.h>
+#include <pthread.h>
 
 /* 수정함
  * 게임 내의 디폴트 값
@@ -13,6 +14,7 @@
 #define LOSE 0
 #define WIN 1
 
+//pthread_mutex_t mutex;
 /* 추가함
  * 이 구조체는 게임 데이터와 함수를 관리한다
  */
@@ -37,6 +39,7 @@ typedef struct mygame{
 }mygame;
 
 mygame * initialize();
+mygame * getObject();
 
 void cleanup(struct mygame *g);
 int quit(int op,struct mygame *g);
