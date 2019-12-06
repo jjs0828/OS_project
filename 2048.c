@@ -41,18 +41,6 @@ initialize(){
     return g;
 }
 
-
-mygame* getObject()
-{
-    static mygame *object = NULL;
-
-    if(object==NULL)
-        object = initialize();
-
-    return object;
-}
-
-
 /*
  * 위 함수는 오브젝트를 반환한다
  */ 
