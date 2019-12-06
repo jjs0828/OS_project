@@ -39,7 +39,6 @@ main(){
     mygame* g = getObject();
 
     signal(SIGINT, terminate); // set up signal to handle ctrl-c
-    signal(SIGTSTP, terminate); // set up signal to handle ctrl-z
     system("stty cbreak");     // read user input immediately
     g->play(g);
     return 0;
