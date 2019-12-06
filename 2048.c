@@ -41,6 +41,17 @@ mygame* initialize(){
 }
 
 
+mygame* getObject()
+{
+    static mygame *object = NULL;
+
+    if(object==NULL)
+        object = initialize();
+
+    return object;
+}
+
+
 /*
  * 위 함수는 메모리를 해제한다
  */
@@ -51,6 +62,8 @@ cleanup(struct mygame *g) {
             free(g->boardLt[r][c]);
         }
     }
+    free(g->score);
+    free(g->win);
     free(g);
 }
 

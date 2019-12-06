@@ -25,7 +25,9 @@
  */
 void
 terminate(int signum) {
-    printf("\nTerminate %d\n",signum);    
+    printf("\nTerminate %d\n",signum); 
+    mygame* g = getObject();
+    g->quit(QUIT, g);
     exit(1);
 }
 
@@ -34,7 +36,7 @@ terminate(int signum) {
  */
 int
 main(){
-    mygame* g=initialize();
+    mygame* g = getObject();
 
     signal(SIGINT, terminate); // set up signal to handle ctrl-c
     signal(SIGTSTP, terminate); // set up signal to handle ctrl-z

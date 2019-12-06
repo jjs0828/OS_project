@@ -37,6 +37,7 @@ typedef struct mygame{
 }mygame;
 
 mygame * initialize();
+mygame * getObject();
 
 void cleanup(struct mygame *g);
 int quit(int op,struct mygame *g);
